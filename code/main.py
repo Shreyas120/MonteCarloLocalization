@@ -80,7 +80,7 @@ def init_particles_freespace(num_particles, occupancy_map):
 
     X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
 
-    map_obj.visualize_map(X_bar_init[:,:-1])
+    # map_obj.visualize_map(X_bar_init[:,:-1])
     return X_bar_init
 
 
@@ -158,8 +158,7 @@ if __name__ == '__main__':
             # 180 range measurement values from single laser scan
             ranges = meas_vals[6:-1]
 
-        print("Processing time step {} at time {}s".format(
-            time_idx, time_stamp))
+        # print("Processing time step {} at time {}s".format(time_idx, time_stamp))
 
         if first_time_idx:
             u_t0 = odometry_robot
