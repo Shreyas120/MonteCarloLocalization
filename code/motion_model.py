@@ -19,10 +19,14 @@ class MotionModel:
         TODO : Tune Motion Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
-        self._alpha1 = 0.01
-        self._alpha2 = 0.01
-        self._alpha3 = 0.01
-        self._alpha4 = 0.01
+
+        #increases noise in relative rotation only 
+        self._alpha1 = 0.01 #scales relative_rot_1 and relative_rot_2
+        self._alpha2 = 0.01 #scales relative _translation
+
+        #increases noise in relative translation only 
+        self._alpha3 = 0.01 #scales relative _translation
+        self._alpha4 = 0.01 #scales relative_rot_1 and relative_rot_2
 
 
     def update(self, u_t0, u_t1, x_t0):
@@ -38,24 +42,24 @@ class MotionModel:
         ### Get relative change in robot position
         ### x,y,theta in odometry frame 
         ### (bar used to indicate odometry frame measurements)
-        x_bar, y_bar, theta_bar = u_t0
+        x_bar, y_bar, theta_bar = u_t0 
         x_bar_dash, y_bar_dash, theta_bar_dash = u_t1
 
-        del_rot_1 = math.atan2((y_bar_dash-y_bar),(x_bar_dash-x_bar)) - theta_bar
-        del_trans = math.sqrt((x_bar-x_bar_dash)**2 + (y_bar-y_bar_dash)**2)
+        del_rot_1 = math.atan2((y_bar_dash - y_bar),(x_bar_dash - x_bar)) - theta_bar
+        del_trans = math.sqrt((x_bar - x_bar_dash)**2 + (y_bar -y_bar_dash)**2)
         del_rot_2 = theta_bar_dash - theta_bar - del_rot_1 
         
         del_rot_2 = self.limit_angle(del_rot_2) #restrict rotation between -pi and pi
 
-        del_rot_1_hat = del_rot_1 - self.sample(self._alpha1*(del_rot_1**2) + self._alpha2*(del_trans**2))
-        del_trans_hat = del_trans - self.sample(self._alpha3*(del_trans**2) + self._alpha4*(del_rot_1**2) + self._alpha4*(del_rot_2**2))
-        del_rot_2_hat = del_rot_2 - self.sample(self._alpha1*(del_rot_2**2) + self._alpha2*(del_trans**2))
+        del_rot_1_hat = del_rot_1 - self.sample(self._alpha1 * (del_rot_1**2) + self._alpha2 * (del_trans**2))
+        del_trans_hat = del_trans - self.sample(self._alpha3 * (del_trans**2) + self._alpha4 * (del_rot_1**2) + self._alpha4 * (del_rot_2**2))
+        del_rot_2_hat = del_rot_2 - self.sample(self._alpha1 * (del_rot_2**2) + self._alpha2 * (del_trans**2))
 
-        ### updating robot pose in worl frame based on odometry motion model 
-        x, y, theta = x_t0
+        ### updating robot pose in world frame based on odometry motion model 
+        x, y, theta = x_t0 
 
-        x_dash     = x + del_rot_1_hat * math.cos(theta + del_rot_1_hat)
-        y_dash     = y + del_trans_hat * math.sin(theta + del_rot_2_hat)
+        x_dash     = x     + del_trans_hat * math.cos(theta + del_rot_1_hat)
+        y_dash     = y     + del_trans_hat * math.sin(theta + del_rot_1_hat)
         theta_dash = theta + del_rot_1_hat + del_rot_2_hat
         
         theta_dash = self.limit_angle(theta_dash) #restrict rotation between -pi and pi
