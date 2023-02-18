@@ -98,8 +98,8 @@ if __name__ == '__main__':
     Initialize Parameters
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path_to_map', default='../data/map/wean.dat')
-    parser.add_argument('--path_to_log', default='../data/log/robotdata1.log')
+    parser.add_argument('--path_to_map', default='/home/shreyas/Desktop/SLAM/hw1/data/map/wean.dat')
+    parser.add_argument('--path_to_log', default='/home/shreyas/Desktop/SLAM/hw1/data/log/robotdata1.log')
     parser.add_argument('--output', default='results')
     parser.add_argument('--num_particles', default=500, type=int)
     parser.add_argument('--visualize', action='store_true')

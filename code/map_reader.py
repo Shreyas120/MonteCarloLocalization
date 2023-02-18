@@ -29,7 +29,7 @@ class MapReader:
         print('Finished reading 2D map of size: ({}, {})'.format(
             self._size_x, self._size_y))
 
-    def visualize_map(self):
+    def visualize_map(self, X):
         fig = plt.figure()
         mng = plt.get_current_fig_manager()
         # mng.resize(*mng.window.maxsize())
