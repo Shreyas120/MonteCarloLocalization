@@ -53,13 +53,34 @@ def init_particles_random(num_particles, occupancy_map):
 
 def init_particles_freespace(num_particles, occupancy_map):
 
-    # initialize [x, y, theta] positions in world_frame for all particles
     """
-    TODO : Add your code here
+    # initialize [x, y, theta] positions in world_frame for all particles
+    # use knowledge from occupany grid 
     This version converges faster than init_particles_random
     """
-    X_bar_init = np.zeros((num_particles, 4))
 
+    y0_vals = np.zeros((num_particles, 1))
+    x0_vals = np.zeros((num_particles, 1))
+
+    particle = 0 
+    while particle < num_particles:
+        x0_vals[particle,0] = np.random.uniform(3000, 7000)
+        y0_vals[particle,0] = np.random.uniform(0, 7500)
+        p_occ = occupancy_map[int(y0_vals[particle,0]/10) , int(x0_vals[particle,0]/10)]
+
+        if p_occ<0.15 and p_occ !=-1: #0.2 is safer
+            #accept initialization for this particle
+            particle+=1
+         
+    theta0_vals = np.random.uniform(-3.14, 3.14, (num_particles, 1))
+
+    # initialize weights for all particles
+    w0_vals = np.ones((num_particles, 1), dtype=np.float64)
+    w0_vals = w0_vals / num_particles
+
+    X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
+
+    map_obj.visualize_map(X_bar_init[:,:-1])
     return X_bar_init
 
 
@@ -89,16 +110,24 @@ if __name__ == '__main__':
     os.makedirs(args.output, exist_ok=True)
 
     map_obj = MapReader(src_path_map)
-    occupancy_map = map_obj.get_map()
+    occupancy_map = map_obj.get_map() # np array with shape 800,800
+    #Each grid has a resolution of 10cm, so we cover 2D area of 80m x 80m 
+
     logfile = open(src_path_log, 'r')
 
     motion_model = MotionModel()
+    #motion model tuneable params alpha 1->4 (i.e. common for all particles)
+    #update method returns new belief of state (x,y,theta) for each particle
+
     sensor_model = SensorModel(occupancy_map)
+    ##occupany map gives probability of a 10cm x 10cm grid being occupied (contains 800x800 grids)
+
     resampler = Resampling()
 
     num_particles = args.num_particles
-    X_bar = init_particles_random(num_particles, occupancy_map)
-    # X_bar = init_particles_freespace(num_particles, occupancy_map)
+    # X_bar = init_particles_random(num_particles, occupancy_map)
+    
+    X_bar = init_particles_freespace(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop
     """
