@@ -87,16 +87,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_to_map', default='/home/shreyas/Desktop/SLAM/hw1/data/map/wean.dat')
     parser.add_argument('--data_log', default='1', type=str)
-    parser.add_argument('--dead_reck_no_noise', default=False, type=bool)
     parser.add_argument('--dead_reck', default=False, type=bool)
+    parser.add_argument('--no_noise', default=False, type=bool)
     parser.add_argument('--num_particles', default=500, type=int)
     args = parser.parse_args()
 
     src_path_map = args.path_to_map
     src_path_log =  '/home/shreyas/Desktop/SLAM/hw1/data/log/robotdata' + args.data_log + '.log'
 
-    if args.dead_reck_no_noise: 
-        args.dead_reck = True
 
     map_obj = MapReader(src_path_map)
     occupancy_map = map_obj.get_map() # np array with shape 800,800
@@ -104,7 +102,7 @@ if __name__ == '__main__':
 
     logfile = open(src_path_log, 'r')
 
-    motion_model = MotionModel(args.dead_reck_no_noise)
+    motion_model = MotionModel(args.no_noise)
     #motion model tuneable params alpha 1->4 (i.e. common for all particles)
     #update method returns new belief of state (x,y,theta) for each particle
     num_particles = args.num_particles
@@ -114,10 +112,11 @@ if __name__ == '__main__':
         num_particles = 1
         X_bar = init_particles_fixed_location(num_particles)
         dead_reckon = np.zeros((count_lines(src_path_log),3))
+    
     else: 
 
-        # X_bar = init_particles_random(num_particles, occupancy_map)
-        X_bar = init_particles_fixed_location(num_particles)
+        X_bar = init_particles_random(num_particles, occupancy_map)
+        # X_bar = init_particles_fixed_location(num_particles)
         # X_bar = init_particles_freespace(num_particles, occupancy_map)
         plt.ion()
         fig = plt.figure()
@@ -151,16 +150,16 @@ if __name__ == '__main__':
             X_bar[m,:-1] = x_t1
             u_t0 = u_t1
         
-        if not args.dead_reck:
+        if  args.dead_reck:
+            dead_reckon[time_idx,:] = [X_bar[0, 0] / 10.0, X_bar[0, 1] / 10.0, time_idx]
+            
+        else:
             x_locs = X_bar[:, 0] / 10.0
             y_locs = X_bar[:, 1] / 10.0
             sp.set_data(x_locs,y_locs)
             plt.title("Processed {:.2f}%, Time {:.2f}s , change in x {}, change in y {}".format(time_idx*100/2218.0, time_stamp, u_t1[0] - u_t0[0],  u_t0[1] - u_t1[1]))
             fig.canvas.draw()
             fig.canvas.flush_events()
-
-        else:
-            dead_reckon[time_idx,:] = [X_bar[0, 0] / 10.0, X_bar[0, 1] / 10.0, time_idx]
 
     if args.dead_reck:
         # plt.imshow(occupancy_map, cmap='Greys')
