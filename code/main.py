@@ -35,6 +35,22 @@ def visualize_timestep(X_bar, tstep, output_path):
     scat.remove()
 
 
+def init_particles_fixed_location(num_particles):
+    """
+    Initialize all particles at the same location to check motion model 
+    """
+     # initialize [x, y, theta] positions in world_frame for all particles
+    y0_vals = 3500*np.ones((num_particles, 1))
+    x0_vals = 3500*np.ones((num_particles, 1))
+    theta0_vals = np.zeros((num_particles, 1))
+
+    # initialize weights for all particles
+    w0_vals = np.ones((num_particles, 1), dtype=np.float64)
+    w0_vals = w0_vals / num_particles
+    X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
+
+    return X_bar_init
+
 def init_particles_random(num_particles, occupancy_map):
 
     # initialize [x, y, theta] positions in world_frame for all particles
@@ -125,8 +141,8 @@ if __name__ == '__main__':
     resampler = Resampling()
 
     num_particles = args.num_particles
+
     # X_bar = init_particles_random(num_particles, occupancy_map)
-    
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop
@@ -197,3 +213,76 @@ if __name__ == '__main__':
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ### check motion model ####
+    #Initialize all particles at the same location
+    X_bar = init_particles_fixed_location(num_particles)
+    first_time_idx = True
+    for time_idx, line in enumerate(logfile):
+
+        meas_type = line[0]
+        meas_vals = np.fromstring(line[2:], dtype=np.float64, sep=' ')
+        odometry_robot = meas_vals[0:3]
+        time_stamp = meas_vals[-1]
+
+        if first_time_idx:
+            u_t0 = odometry_robot
+            first_time_idx = False
+            continue
+
+        u_t1 = odometry_robot
+
+        # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
+        # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
+        for m in range(0, num_particles):
+            """
+            MOTION MODEL
+            """
+            x_t0 = X_bar[m, 0:3]
+            x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+            X_bar[m,:-1] = x_t1
+            u_t0 = u_t1
+        
+    map_obj.visualize_map(X_bar)

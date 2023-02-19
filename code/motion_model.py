@@ -7,7 +7,7 @@
 import sys
 import numpy as np
 import math
-
+import copy
 
 class MotionModel:
     """
@@ -16,7 +16,6 @@ class MotionModel:
     """
     def __init__(self):
         """
-        TODO : Tune Motion Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
         """
 
@@ -25,8 +24,8 @@ class MotionModel:
         self._alpha2 = 0.01 #scales relative _translation
 
         #increases noise in relative translation only 
-        self._alpha3 = 0.01 #scales relative _translation
-        self._alpha4 = 0.01 #scales relative_rot_1 and relative_rot_2
+        self._alpha3 = 10 #scales relative _translation
+        self._alpha4 = 10 #scales relative_rot_1 and relative_rot_2
 
 
     def update(self, u_t0, u_t1, x_t0):
@@ -49,6 +48,8 @@ class MotionModel:
         del_trans = math.sqrt((x_bar - x_bar_dash)**2 + (y_bar -y_bar_dash)**2)
         del_rot_2 = theta_bar_dash - theta_bar - del_rot_1 
         
+        # print(del_rot_1, del_trans, del_rot_2)
+
         del_rot_2 = self.limit_angle(del_rot_2) #restrict rotation between -pi and pi
 
         del_rot_1_hat = del_rot_1 - self.sample(self._alpha1 * (del_rot_1**2) + self._alpha2 * (del_trans**2))
@@ -67,19 +68,20 @@ class MotionModel:
         x_t1 = [x_dash, y_dash, theta_dash]
         return x_t1
 
-    def sample(var):
+    def sample(self,var):
         """
         Given a variance, sample zero-mean noise 
         Bounded between -1 and 1 ?
         """
-        return np.random.normal(0.0, math.sqrt(var))
+        return var * np.sum( np.random.uniform(0.0,1.0,(12,1)) ) / 12.0
+        # return np.random.normal(0.0, math.sqrt(var))
 
-    def limit_angle(angle_):
+    def limit_angle(self, angle_):
         """
         Truncate angles outside [-pi,pi] 
         Correct wrap around/spill over to avoid potential divergence of PF 
         """
-        angle = angle_.deep_copy()
+        angle = copy.deepcopy(angle_)
         
         while angle > math.pi:
             angle -= 2*math.pi
@@ -87,9 +89,9 @@ class MotionModel:
         while angle < -math.pi:
             angle += 2*math.pi
         
-        if angle!=angle_:
-            #some correction was made
-            print("Limiting angle between -pi and pi")
-            print("{} radians corrected to {} radians".format(angle_, angle))
+        # if angle!=angle_:
+        #     #some correction was made
+        #     print("Limiting angle between -pi and pi")
+        #     print("{} radians corrected to {} radians".format(angle_, angle))
 
         return angle 
