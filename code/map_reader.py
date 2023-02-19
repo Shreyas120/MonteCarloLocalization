@@ -34,12 +34,11 @@ class MapReader:
         # mng.resize(*mng.window.maxsize())
         x_locs = X[:, 0] / 10.0
         y_locs = X[:, 1] / 10.0
-        plt.ion()
         plt.scatter(x_locs, y_locs, s=0.1, c='r', marker='o')
         plt.imshow(self._occupancy_map, cmap='Greys')
         plt.axis([0, 800, 0, 800])
         plt.draw()
-        plt.pause(0)
+        plt.pause(0.01)
 
     def get_map(self):
         return self._occupancy_map

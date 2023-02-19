@@ -17,7 +17,6 @@ from matplotlib import pyplot as plt
 from matplotlib import figure as fig
 import time
 
-
 def visualize_map(occupancy_map):
     fig = plt.figure()
     mng = plt.get_current_fig_manager()
@@ -50,6 +49,11 @@ def init_particles_fixed_location(num_particles):
     X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
 
     return X_bar_init
+
+def count_lines(path):
+    with open(path, 'r') as fp:
+        x = len(fp.readlines())
+    return x
 
 def init_particles_random(num_particles, occupancy_map):
 
@@ -141,124 +145,22 @@ if __name__ == '__main__':
     resampler = Resampling()
 
     num_particles = args.num_particles
-
-    # X_bar = init_particles_random(num_particles, occupancy_map)
-    X_bar = init_particles_freespace(num_particles, occupancy_map)
-    """
-    Monte Carlo Localization Algorithm : Main Loop
-    """
-    if args.visualize:
-        visualize_map(occupancy_map)
-
-    first_time_idx = True
-    for time_idx, line in enumerate(logfile):
-
-        # Read a single 'line' from the log file (can be either odometry or laser measurement)
-        # L : laser scan measurement, O : odometry measurement
-        meas_type = line[0]
-
-        # convert measurement values from string to double
-        meas_vals = np.fromstring(line[2:], dtype=np.float64, sep=' ')
-
-        # odometry reading [x, y, theta] in odometry frame
-        odometry_robot = meas_vals[0:3]
-        time_stamp = meas_vals[-1]
-
-        # ignore pure odometry measurements for (faster debugging)
-        # if ((time_stamp <= 0.0) | (meas_type == "O")):
-        #     continue
-
-        if (meas_type == "L"):
-            # [x, y, theta] coordinates of laser in odometry frame
-            odometry_laser = meas_vals[3:6]
-            # 180 range measurement values from single laser scan
-            ranges = meas_vals[6:-1]
-
-        # print("Processing time step {} at time {}s".format(time_idx, time_stamp))
-
-        if first_time_idx:
-            u_t0 = odometry_robot
-            first_time_idx = False
-            continue
-
-        X_bar_new = np.zeros((num_particles, 4), dtype=np.float64)
-        u_t1 = odometry_robot
-
-        # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
-        # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
-        for m in range(0, num_particles):
-            """
-            MOTION MODEL
-            """
-            x_t0 = X_bar[m, 0:3]
-            x_t1 = motion_model.update(u_t0, u_t1, x_t0)
-
-            """
-            SENSOR MODEL
-            """
-            if (meas_type == "L"):
-                z_t = ranges
-                w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
-                X_bar_new[m, :] = np.hstack((x_t1, w_t))
-            # else:
-            #     X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
-
-        X_bar = X_bar_new
-        u_t0 = u_t1
-
-        """
-        RESAMPLING
-        """
-        X_bar = resampler.low_variance_sampler(X_bar)
-
-        if args.visualize:
-            visualize_timestep(X_bar, time_idx, args.output)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  
     ### check motion model ####
-    #Initialize all particles at the same location
-    X_bar = init_particles_fixed_location(num_particles)
+    # X_bar = init_particles_random(num_particles, occupancy_map)
+    # X_bar = init_particles_fixed_location(num_particles)
+    X_bar = init_particles_freespace(num_particles, occupancy_map)
+
+    # plt.ion()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111)
+    # ax.imshow(occupancy_map, cmap='Greys')
+    # x = (X_bar[:, 0] / 10.0).tolist()
+    # y = (X_bar[:, 1] / 10.0).tolist()
+    # sp, = ax.plot(x,y,label='toto',ms=1,color='r',marker='o',ls='')    
+
+    dead_reckon = np.zeros((count_lines(src_path_log),3))
+
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
 
@@ -274,8 +176,6 @@ if __name__ == '__main__':
 
         u_t1 = odometry_robot
 
-        # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
-        # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
         for m in range(0, num_particles):
             """
             MOTION MODEL
@@ -284,5 +184,96 @@ if __name__ == '__main__':
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
             X_bar[m,:-1] = x_t1
             u_t0 = u_t1
-        
-    map_obj.visualize_map(X_bar)
+            
+        # x_locs = X_bar[:, 0] / 10.0
+        # y_locs = X_bar[:, 1] / 10.0
+        # sp.set_data(x_locs,y_locs)
+        # plt.title("Processed {:.2f}%, Time {:.2f}s , change in x {}, change in y {}".format(time_idx*100/2218.0, time_stamp, u_t1[0] - u_t0[0],  u_t0[1] - u_t1[1]))
+        # fig.canvas.draw()
+        # fig.canvas.flush_events()
+        # time.sleep(0.1)
+
+        dead_reckon[time_idx,:] = [X_bar[0, 0] / 10.0, X_bar[0, 1] / 10.0, time_idx]
+
+
+    #dead reckon signal
+    plt.scatter(dead_reckon[1:,1], dead_reckon[1:,0], c= dead_reckon[1:,2], cmap='Reds')
+    plt.title('Dead reckon signal ')
+    # Add a colorbar to show the intensity scale
+    cbar = plt.colorbar()
+    cbar.set_label('Intensity')
+    plt.show()
+
+
+    # # X_bar = init_particles_random(num_particles, occupancy_map)
+    # X_bar = init_particles_freespace(num_particles, occupancy_map)
+    # """
+    # Monte Carlo Localization Algorithm : Main Loop
+    # """
+    # if args.visualize:
+    #     visualize_map(occupancy_map)
+
+    # first_time_idx = True
+    # for time_idx, line in enumerate(logfile):
+
+    #     # Read a single 'line' from the log file (can be either odometry or laser measurement)
+    #     # L : laser scan measurement, O : odometry measurement
+    #     meas_type = line[0]
+
+    #     # convert measurement values from string to double
+    #     meas_vals = np.fromstring(line[2:], dtype=np.float64, sep=' ')
+
+    #     # odometry reading [x, y, theta] in odometry frame
+    #     odometry_robot = meas_vals[0:3]
+    #     time_stamp = meas_vals[-1]
+
+    #     # ignore pure odometry measurements for (faster debugging)
+    #     # if ((time_stamp <= 0.0) | (meas_type == "O")):
+    #     #     continue
+
+    #     if (meas_type == "L"):
+    #         # [x, y, theta] coordinates of laser in odometry frame
+    #         odometry_laser = meas_vals[3:6]
+    #         # 180 range measurement values from single laser scan
+    #         ranges = meas_vals[6:-1]
+
+    #     # print("Processing time step {} at time {}s".format(time_idx, time_stamp))
+
+    #     if first_time_idx:
+    #         u_t0 = odometry_robot
+    #         first_time_idx = False
+    #         continue
+
+    #     X_bar_new = np.zeros((num_particles, 4), dtype=np.float64)
+    #     u_t1 = odometry_robot
+
+    #     # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
+    #     # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
+    #     for m in range(0, num_particles):
+    #         """
+    #         MOTION MODEL
+    #         """
+    #         x_t0 = X_bar[m, 0:3]
+    #         x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+
+    #         """
+    #         SENSOR MODEL
+    #         """
+    #         if (meas_type == "L"):
+    #             z_t = ranges
+    #             w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
+    #             X_bar_new[m, :] = np.hstack((x_t1, w_t))
+    #         # else:
+    #         #     X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+
+    #     X_bar = X_bar_new
+    #     u_t0 = u_t1
+
+    #     """
+    #     RESAMPLING
+    #     """
+    #     X_bar = resampler.low_variance_sampler(X_bar)
+
+    #     if args.visualize:
+    #         visualize_timestep(X_bar, time_idx, args.output)
+

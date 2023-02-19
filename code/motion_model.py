@@ -14,19 +14,21 @@ class MotionModel:
     References: Thrun, Sebastian, Wolfram Burgard, and Dieter Fox. Probabilistic robotics. MIT press, 2005.
     [Chapter 5]
     """
-    def __init__(self):
+    def __init__(self, dead_reck_no_noise = False):
         """
         The original numbers are for reference but HAVE TO be tuned.
-        """
-
+        """ 
         #increases noise in relative rotation only 
-        self._alpha1 = 0.01 #scales relative_rot_1 and relative_rot_2
-        self._alpha2 = 0.01 #scales relative _translation
+        self._alpha1 = 0 #scales relative_rot_1 and relative_rot_2
+        self._alpha2 = 0 #scales relative _translation
 
         #increases noise in relative translation only 
         self._alpha3 = 10 #scales relative _translation
         self._alpha4 = 10 #scales relative_rot_1 and relative_rot_2
 
+        if dead_reck_no_noise:
+            self._alpha1, self._alpha2, self._alpha3, self._alpha4 = [0,0,0,0]
+        
 
     def update(self, u_t0, u_t1, x_t0):
         """
@@ -73,7 +75,7 @@ class MotionModel:
         Given a variance, sample zero-mean noise 
         Bounded between -1 and 1 ?
         """
-        return var * np.sum( np.random.uniform(0.0,1.0,(12,1)) ) / 12.0
+        return var* np.sum( np.random.uniform(-1.0,1.0,(12,1)) ) / 12.0
         # return np.random.normal(0.0, math.sqrt(var))
 
     def limit_angle(self, angle_):
