@@ -9,7 +9,8 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
-
+import math
+import copy
 
 class MapReader:
     def __init__(self, src_path_map):
@@ -28,18 +29,47 @@ class MapReader:
 
         print('Finished reading 2D map of size: ({}, {})'.format(self._size_x, self._size_y))
 
-    def visualize_map(self, X, title=""):
+    def visualize_map(self, X_bar, rays=None):
         fig = plt.figure()
         mng = plt.get_current_fig_manager()
-        # mng.resize(*mng.window.maxsize())
-        x_locs = X[:, 0] / 10.0
-        y_locs = X[:, 1] / 10.0
-        plt.title(title + " " + str(X.shape[0]) + " particles")
-        plt.scatter(x_locs, y_locs, s=0.1, c='r', marker='o')
+        #mng.resize(*mng.window.maxsize())
+        x_locs = X_bar[:, 0] / 10.0
+        y_locs = X_bar[:, 1] / 10.0
+        scat = plt.scatter(x_locs, y_locs, c='r', marker='.')
+
+        if rays!=None:
+            # Draw rays
+            x_pos = X_bar[0]
+            # robot to laser frame
+            x_laser = x_pos[0]+25.0*math.cos(x_pos[2])
+            y_laser = x_pos[1]+25.0*math.sin(x_pos[2])
+            theta_laser = x_pos[2]
+            laser_x = [x_laser, y_laser, theta_laser]
+            
+            x_values =[]
+            y_values =[]
+            for r in range(len(rays)):
+                r = rays[r]
+                #print(' {} {}'.format(r[0],r[1]))
+                ray_x = copy.deepcopy(laser_x)
+                ray_x[2] = ray_x[2] + r[0]
+
+                # get end point
+                ray_end_x = ray_x[0] + r[1]*math.cos(ray_x[2])
+                ray_end_y = ray_x[1] + r[1]*math.sin(ray_x[2])
+
+                x_values.append([ray_x[0]/10.0,ray_end_x/10.0])
+                y_values.append([ray_x[1]/10.0,ray_end_y/10.0])
+            
+            #print(x_values)
+            plt.plot(np.array(x_values).T,np.array(y_values).T,'red',linewidth=0.5)
+
+
+        plt.ion()
         plt.imshow(self._occupancy_map, cmap='Greys')
         plt.axis([0, 800, 0, 800])
         plt.draw()
-        plt.pause(0.01)
+        plt.pause(0)
         input("Hit enter to close")
 
     def get_map(self):

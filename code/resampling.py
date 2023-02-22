@@ -33,8 +33,26 @@ class Resampling:
         param[in] X_bar : [num_particles x 4] sized array containing [x, y, theta, wt] values for all particles
         param[out] X_bar_resampled : [num_particles x 4] sized array containing [x, y, theta, wt] values for resampled set of particles
         """
-        """
-        TODO : Add your code here
-        """
         X_bar_resampled =  np.zeros_like(X_bar)
+
+        X_bar[:,3] = X_bar[:,3] / np.sum(X_bar[:,3])
+        M = X_bar.shape[0]
+
+        # r = (1/X_bar.shape[0]) * np.random.rand(1)
+        r = np.random.uniform(0,1/ M)
+
+        c = X_bar[0,3]
+        i = 0
+        for m in range(0,M):
+            u = r + ( m - 1 ) * ( 1 / M )
+            while u > c:
+                i = i + 1
+                c = c + X_bar[i,3]
+            
+            X_bar_resampled [m,:] = X_bar [i,:]
+
         return X_bar_resampled
+
+
+
+

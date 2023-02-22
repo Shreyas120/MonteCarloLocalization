@@ -1,34 +1,3 @@
-'''
-    Adapted from course 16831 (Statistical Techniques).
-    Initially written by Paloma Sodhi (psodhi@cs.cmu.edu), 2018
-    Updated by Wei Dong (weidong@andrew.cmu.edu), 2021
-'''
-
-# # typical mistakes?
-
-#   --> raycastings
-#   -- > pointing in which direction counterclockwise clockwise -- angle of laser pointing in the right direction
-#   --> how do you check if you've walked outside the map area
-
-#   --> sensor model --- visualize pdf --
-#   if zhit is in certain order of magnitude, orders should Be lesser 
-
-#   zhit 4 --> decrease
-#   zshort should be lower than OM 25 --- it should be 2.5 ish<<<
-#   zmax 0.5 is approp
-#   increase zrand above 50  >>> 500 works
-#   explain params in write up 
-
-
-#     muchhhhh smalllller --2-3  OM smalller karo --> relatively correct
-#   a1 0.17
-#   a2 0.17
-#   a3 10
-#   a4 10 
-
-# in sensor model
-# value of min probability = 0.35 --same 
-# max range offset resolution 
 
 import argparse
 import numpy as np
@@ -42,23 +11,7 @@ from resampling import Resampling
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
 import time
-
-def visualize_map(occupancy_map):
-    fig = plt.figure()
-    mng = plt.get_current_fig_manager()
-    plt.ion()
-    plt.imshow(occupancy_map, cmap='Greys')
-    plt.axis([0, 800, 0, 800])
-
-
-def visualize_timestep(X_bar, tstep, output_path):
-    x_locs = X_bar[:, 0] / 10.0
-    y_locs = X_bar[:, 1] / 10.0
-    scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
-    plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
-    plt.pause(0.00001)
-    scat.remove()
-
+import math
 
 def init_particles_fixed_location(num_particles):
     """
@@ -96,7 +49,6 @@ def init_particles_random(num_particles, occupancy_map):
 
     return X_bar_init
 
-
 def init_particles_freespace(num_particles, occupancy_map):
 
     """
@@ -129,31 +81,19 @@ def init_particles_freespace(num_particles, occupancy_map):
     # map_obj.visualize_map(X_bar_init[:,:-1])
     return X_bar_init
 
-
 if __name__ == '__main__':
-    """
-    Description of variables used
-    u_t0 : particle state odometry reading [x, y, theta] at time (t-1) [odometry_frame]
-    u_t1 : particle state odometry reading [x, y, theta] at time t [odometry_frame]
-    x_t0 : particle state belief [x, y, theta] at time (t-1) [world_frame]
-    x_t1 : particle state belief [x, y, theta] at time t [world_frame]
-    X_bar : [num_particles x 4] sized array containing [x, y, theta, wt] values for all particles
-    z_t : array of 180 range measurements for each laser scan
-    """
-    """
-    Initialize Parameters
-    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_to_map', default='/home/shreyas/Desktop/SLAM/hw1/data/map/wean.dat')
-    parser.add_argument('--path_to_log', default='/home/shreyas/Desktop/SLAM/hw1/data/log/robotdata1.log')
-    parser.add_argument('--output', default='results')
+    parser.add_argument('--data_log', default='1', type=str)
+    parser.add_argument('--dead_reck', default=False, type=bool)
+    parser.add_argument('--no_noise', default=False, type=bool)
     parser.add_argument('--num_particles', default=500, type=int)
-    parser.add_argument('--visualize', action='store_true')
+    parser.add_argument('--step_viz', default=True, type=bool)
     args = parser.parse_args()
 
     src_path_map = args.path_to_map
-    src_path_log = args.path_to_log
-    os.makedirs(args.output, exist_ok=True)
+    src_path_log =  '/home/shreyas/Desktop/SLAM/hw1/data/log/robotdata' + args.data_log + '.log'
+    
 
     map_obj = MapReader(src_path_map)
     occupancy_map = map_obj.get_map() # np array with shape 800,800
@@ -161,51 +101,43 @@ if __name__ == '__main__':
 
     logfile = open(src_path_log, 'r')
 
-    motion_model = MotionModel()
+    motion_model = MotionModel(args.no_noise)
     #motion model tuneable params alpha 1->4 (i.e. common for all particles)
     #update method returns new belief of state (x,y,theta) for each particle
-
-    sensor_model = SensorModel(occupancy_map)
-    ##occupany map gives probability of a 10cm x 10cm grid being occupied (contains 800x800 grids)
-
+    sensor_model = SensorModel(occupancy_map,map_obj._resolution,map_obj._size_x,map_obj._size_y)
     resampler = Resampling()
-
+    
     num_particles = args.num_particles
 
-
+    # X_bar = init_particles_fixed_location(num_particles)
     # X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
-    """
-    Monte Carlo Localization Algorithm : Main Loop
-    """
-    if args.visualize:
-        visualize_map(occupancy_map)
 
+    # map_obj.visualize_map(X_bar, "Initial particle locations")
+    dead_reckon = np.zeros((count_lines(src_path_log),3))
+    
+    if args.step_viz:
+        plt.ion()
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(occupancy_map, cmap='Greys')
+        x = (X_bar[:, 0] / 10.0).tolist()
+        y = (X_bar[:, 1] / 10.0).tolist()
+        sp, = ax.plot(x,y,label='toto',ms=1,color='r',marker='o',ls='')  
+    
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
 
-        # Read a single 'line' from the log file (can be either odometry or laser measurement)
-        # L : laser scan measurement, O : odometry measurement
         meas_type = line[0]
-
-        # convert measurement values from string to double
         meas_vals = np.fromstring(line[2:], dtype=np.float64, sep=' ')
-
-        # odometry reading [x, y, theta] in odometry frame
         odometry_robot = meas_vals[0:3]
         time_stamp = meas_vals[-1]
-
-        # ignore pure odometry measurements for (faster debugging)
-        # if ((time_stamp <= 0.0) | (meas_type == "O")):
-        #     continue
-
+        
         if (meas_type == "L"):
             # [x, y, theta] coordinates of laser in odometry frame
             odometry_laser = meas_vals[3:6]
             # 180 range measurement values from single laser scan
             ranges = meas_vals[6:-1]
-
-        # print("Processing time step {} at time {}s".format(time_idx, time_stamp))
 
         if first_time_idx:
             u_t0 = odometry_robot
@@ -215,32 +147,55 @@ if __name__ == '__main__':
         X_bar_new = np.zeros((num_particles, 4), dtype=np.float64)
         u_t1 = odometry_robot
 
-        # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
-        # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
-        
+        ################################ MOTION MODEL ###################################
         X_bar[:,:-1] = motion_model.vecUpdate(u_t0,u_t1,X_bar[:,:-1]) # Vectorized implementation
-
+        # for m in range(0, num_particles):
+        #     x_t0 = X_bar[m, 0:3]
+        #     x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+        #     X_bar[m,:-1] = x_t1
+        ##########################################################################
+        
         for m in range(0, num_particles):
         
-            x_t1 = X_bar[m,:-1]
+            x_t1 = X_bar[m,0:3]
+
             """
             SENSOR MODEL
             """
-            if (meas_type == "L"):
-                z_t = ranges
-                w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
-                X_bar_new[m, :] = np.hstack((x_t1, w_t))
-            else:
-              X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
-
-        X_bar = X_bar_new
+            # if (meas_type == "L"):
+            #     z_t = ranges
+            #     w_t,_ = sensor_model.beam_range_finder_model(z_t, x_t1)
+            #     X_bar[m, -1] = w_t
+        
+        print("Processing time step {} at time {}s".format(time_idx, time_stamp))
+        
         u_t0 = u_t1
-
-        """
-        RESAMPLING
-        """
         X_bar = resampler.low_variance_sampler(X_bar)
 
-        if args.visualize:
-            visualize_timestep(X_bar, time_idx, args.output)
+        if  args.dead_reck:
+            dead_reckon[time_idx,:] = [np.mean(X_bar[:, 0] / 10.0), np.mean(X_bar[:, 1] / 10.0), time_idx]
+            
+        if args.step_viz and time_idx%10==0:
+            x_locs = X_bar[:, 0] / 10.0
+            y_locs = X_bar[:, 1] / 10.0
+            sp.set_data(x_locs,y_locs)
+            plt.title("Processed {:.2f}%, Time {:.2f}s , change in x {}, change in y {}".format(time_idx*100/2218.0, time_stamp, u_t1[0] - u_t0[0],  u_t0[1] - u_t1[1]))
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            
+    
 
+    if args.dead_reck:
+        # plt.imshow(occupancy_map, cmap='Greys')
+        plt.scatter(dead_reckon[1:,1], dead_reckon[1:,0], s=0.2, c= dead_reckon[1:,2], cmap='Reds')
+        plt.title('Dead reckon signal ')
+        # Add a colorbar to show the intensity scale
+        cbar = plt.colorbar()
+        cbar.set_label('Intensity')
+        plt.show()
+
+
+    if args.no_noise:
+        print('End pos ', dead_reckon[-1,1] , " \t ", dead_reckon[-1,0])
+
+    map_obj.visualize_map(X_bar, "Final particle locations")
