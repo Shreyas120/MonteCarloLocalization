@@ -11,7 +11,7 @@ from resampling import Resampling
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
 import time
-
+import math
 
 def init_particles_fixed_location(num_particles):
     """
@@ -49,7 +49,6 @@ def init_particles_random(num_particles, occupancy_map):
 
     return X_bar_init
 
-
 def init_particles_freespace(num_particles, occupancy_map):
 
     """
@@ -82,7 +81,6 @@ def init_particles_freespace(num_particles, occupancy_map):
     # map_obj.visualize_map(X_bar_init[:,:-1])
     return X_bar_init
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_to_map', default='/home/shreyas/Desktop/SLAM/hw1/data/map/wean.dat')
@@ -90,6 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('--dead_reck', default=False, type=bool)
     parser.add_argument('--no_noise', default=False, type=bool)
     parser.add_argument('--num_particles', default=500, type=int)
+    parser.add_argument('--step_viz', default=False, type=bool)
     args = parser.parse_args()
 
     src_path_map = args.path_to_map
@@ -114,17 +113,17 @@ if __name__ == '__main__':
         dead_reckon = np.zeros((count_lines(src_path_log),3))
     
     else: 
-
-        X_bar = init_particles_random(num_particles, occupancy_map)
-        # X_bar = init_particles_fixed_location(num_particles)
+        X_bar = init_particles_fixed_location(num_particles)
+        # X_bar = init_particles_random(num_particles, occupancy_map)
         # X_bar = init_particles_freespace(num_particles, occupancy_map)
-        plt.ion()
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.imshow(occupancy_map, cmap='Greys')
-        x = (X_bar[:, 0] / 10.0).tolist()
-        y = (X_bar[:, 1] / 10.0).tolist()
-        sp, = ax.plot(x,y,label='toto',ms=1,color='r',marker='o',ls='')  
+        if args.step_viz:
+            plt.ion()
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.imshow(occupancy_map, cmap='Greys')
+            x = (X_bar[:, 0] / 10.0).tolist()
+            y = (X_bar[:, 1] / 10.0).tolist()
+            sp, = ax.plot(x,y,label='toto',ms=1,color='r',marker='o',ls='')  
     
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
@@ -141,25 +140,29 @@ if __name__ == '__main__':
 
         u_t1 = odometry_robot
 
-        for m in range(0, num_particles):
-            """
-            MOTION MODEL
-            """
-            x_t0 = X_bar[m, 0:3]
-            x_t1 = motion_model.update(u_t0, u_t1, x_t0)
-            X_bar[m,:-1] = x_t1
-            u_t0 = u_t1
+        ################################ MOTION MODEL ###################################
+        X_bar[:,:-1] = motion_model.vecUpdate(u_t0,u_t1,X_bar[:,:-1]) # Vectorized implementation
         
+        # for m in range(0, num_particles):
+        #     x_t0 = X_bar[m, 0:3]
+        #     x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+        #     X_bar[m,:-1] = x_t1
+        ##########################################################################
+        
+        u_t0 = u_t1
+
         if  args.dead_reck:
             dead_reckon[time_idx,:] = [X_bar[0, 0] / 10.0, X_bar[0, 1] / 10.0, time_idx]
             
-        else:
+        if args.step_viz:
             x_locs = X_bar[:, 0] / 10.0
             y_locs = X_bar[:, 1] / 10.0
             sp.set_data(x_locs,y_locs)
             plt.title("Processed {:.2f}%, Time {:.2f}s , change in x {}, change in y {}".format(time_idx*100/2218.0, time_stamp, u_t1[0] - u_t0[0],  u_t0[1] - u_t1[1]))
             fig.canvas.draw()
             fig.canvas.flush_events()
+
+    map_obj.visualize_map(X_bar)
 
     if args.dead_reck:
         # plt.imshow(occupancy_map, cmap='Greys')

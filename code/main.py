@@ -4,6 +4,32 @@
     Updated by Wei Dong (weidong@andrew.cmu.edu), 2021
 '''
 
+# # typical mistakes?
+
+#   --> raycastings
+#   -- > pointing in which direction counterclockwise clockwise -- angle of laser pointing in the right direction
+#   --> how do you check if you've walked outside the map area
+
+#   --> sensor model --- visualize pdf --
+#   if zhit is in certain order of magnitude, orders should Be lesser 
+
+#   zhit 4 --> decrease
+#   zshort should be lower than OM 25 --- it should be 2.5 ish<<<
+#   zmax 0.5 is approp
+#   increase zrand above 50  >>> 500 works
+#   explain params in write up 
+
+
+#     muchhhhh smalllller --2-3  OM smalller karo --> relatively correct
+#   a1 0.17
+#   a2 0.17
+#   a3 10
+#   a4 10 
+
+# in sensor model
+# value of min probability = 0.35 --same 
+# max range offset resolution 
+
 import argparse
 import numpy as np
 import sys, os

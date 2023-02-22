@@ -39,6 +39,7 @@ class MapReader:
         plt.axis([0, 800, 0, 800])
         plt.draw()
         plt.pause(0.01)
+        input("Hit enter to close")
 
     def get_map(self):
         return self._occupancy_map
