@@ -85,7 +85,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_to_map', default='/home/shreyas/Desktop/SLAM/hw1/data/map/wean.dat')
     parser.add_argument('--data_log', default='1', type=str)
-    parser.add_argument('--dead_reck', default=False, type=bool)
+    parser.add_argument('--dead_reck', default=True, type=bool)
     parser.add_argument('--no_noise', default=False, type=bool)
     parser.add_argument('--num_particles', default=500, type=int)
     parser.add_argument('--step_viz', default=False, type=bool)
@@ -106,24 +106,21 @@ if __name__ == '__main__':
     #update method returns new belief of state (x,y,theta) for each particle
     num_particles = args.num_particles
 
+    X_bar = init_particles_fixed_location(num_particles)
+    # X_bar = init_particles_random(num_particles, occupancy_map)
+    # X_bar = init_particles_freespace(num_particles, occupancy_map)
 
-    if args.dead_reck:
-        num_particles = 1
-        X_bar = init_particles_fixed_location(num_particles)
-        dead_reckon = np.zeros((count_lines(src_path_log),3))
+    # map_obj.visualize_map(X_bar, "Initial particle locations")
+    dead_reckon = np.zeros((count_lines(src_path_log),3))
     
-    else: 
-        X_bar = init_particles_fixed_location(num_particles)
-        # X_bar = init_particles_random(num_particles, occupancy_map)
-        # X_bar = init_particles_freespace(num_particles, occupancy_map)
-        if args.step_viz:
-            plt.ion()
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
-            ax.imshow(occupancy_map, cmap='Greys')
-            x = (X_bar[:, 0] / 10.0).tolist()
-            y = (X_bar[:, 1] / 10.0).tolist()
-            sp, = ax.plot(x,y,label='toto',ms=1,color='r',marker='o',ls='')  
+    if args.step_viz:
+        plt.ion()
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(occupancy_map, cmap='Greys')
+        x = (X_bar[:, 0] / 10.0).tolist()
+        y = (X_bar[:, 1] / 10.0).tolist()
+        sp, = ax.plot(x,y,label='toto',ms=1,color='r',marker='o',ls='')  
     
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
@@ -150,21 +147,22 @@ if __name__ == '__main__':
         ##########################################################################
         
         u_t0 = u_t1
-
+        
         if  args.dead_reck:
-            dead_reckon[time_idx,:] = [X_bar[0, 0] / 10.0, X_bar[0, 1] / 10.0, time_idx]
+            dead_reckon[time_idx,:] = [np.mean(X_bar[:, 0] / 10.0), np.mean(X_bar[:, 1] / 10.0), time_idx]
             
-        if args.step_viz:
+        if args.step_viz and time_idx%10==0:
             x_locs = X_bar[:, 0] / 10.0
             y_locs = X_bar[:, 1] / 10.0
             sp.set_data(x_locs,y_locs)
             plt.title("Processed {:.2f}%, Time {:.2f}s , change in x {}, change in y {}".format(time_idx*100/2218.0, time_stamp, u_t1[0] - u_t0[0],  u_t0[1] - u_t1[1]))
             fig.canvas.draw()
             fig.canvas.flush_events()
-
-    map_obj.visualize_map(X_bar)
+            
+        
 
     if args.dead_reck:
+        fig.clf()
         # plt.imshow(occupancy_map, cmap='Greys')
         plt.scatter(dead_reckon[1:,1], dead_reckon[1:,0], s=0.2, c= dead_reckon[1:,2], cmap='Reds')
         plt.title('Dead reckon signal ')
@@ -172,3 +170,9 @@ if __name__ == '__main__':
         cbar = plt.colorbar()
         cbar.set_label('Intensity')
         plt.show()
+
+
+    if args.no_noise:
+        print('End pos ', dead_reckon[-1,1] , " \t ", dead_reckon[-1,0])
+
+    map_obj.visualize_map(X_bar, "Final particle locations")

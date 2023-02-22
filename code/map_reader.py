@@ -28,12 +28,13 @@ class MapReader:
 
         print('Finished reading 2D map of size: ({}, {})'.format(self._size_x, self._size_y))
 
-    def visualize_map(self, X):
+    def visualize_map(self, X, title=""):
         fig = plt.figure()
         mng = plt.get_current_fig_manager()
         # mng.resize(*mng.window.maxsize())
         x_locs = X[:, 0] / 10.0
         y_locs = X[:, 1] / 10.0
+        plt.title(title + " " + str(X.shape[0]) + " particles")
         plt.scatter(x_locs, y_locs, s=0.1, c='r', marker='o')
         plt.imshow(self._occupancy_map, cmap='Greys')
         plt.axis([0, 800, 0, 800])

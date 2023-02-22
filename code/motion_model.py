@@ -19,8 +19,8 @@ class MotionModel:
         The original numbers are for reference but HAVE TO be tuned.
         """ 
         #increases noise in relative rotation only 
-        self._alpha1 = 0.001 #scales relative_rot_1 and relative_rot_2
-        self._alpha2 = 0.001 #scales relative _translation
+        self._alpha1 = 0.0001 #scales relative_rot_1 and relative_rot_2
+        self._alpha2 = 0.0001 #scales relative _translation
 
         #increases noise in relative translation only 
         self._alpha3 = 0.0001 #scales relative _translation
